@@ -3,23 +3,29 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
-
 export async function POST(req: Request) {
   try {
-    if (!process.env.OPENROUTER_API_KEY) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+
+    if (!apiKey) {
       return NextResponse.json(
         { error: "OpenRouter API key is missing" },
         { status: 500 }
       );
     }
 
+    const client = new OpenAI({
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey,
+    });
+
     const { cvText } = await req.json();
 
-    if (!cvText || typeof cvText !== "string" || cvText.trim().length < 20) {
+    if (
+      !cvText ||
+      typeof cvText !== "string" ||
+      cvText.trim().length < 20
+    ) {
       return NextResponse.json(
         { error: "Please provide valid CV text" },
         { status: 400 }
@@ -27,7 +33,7 @@ export async function POST(req: Request) {
     }
 
     const completion = await client.chat.completions.create({
-      model: "openai/gpt-4o-mini",
+      model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -50,12 +56,12 @@ Use this structure:
 }
 
 Never invent information. Use empty strings or arrays when information is missing.
-Write professional English.`
+Write professional English.`,
         },
         {
           role: "user",
-          content: cvText.slice(0, 30000)
-        }
+          content: cvText.slice(0, 30000),
+        },
       ],
       temperature: 0.2,
     });
@@ -74,7 +80,6 @@ Write professional English.`
     const portfolio = JSON.parse(cleaned);
 
     return NextResponse.json({ success: true, portfolio });
-
   } catch (error) {
     console.error("OpenRouter error:", error);
 
